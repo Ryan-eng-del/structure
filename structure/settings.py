@@ -41,7 +41,21 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'rest_framework.authtoken',
+    'task',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'DATETIME_FORMAT': '%Y-%m-%d %H:%M:%S',
+    'PAGE_SIZE': 10,
+    'PAGINATE_BY_PARAM': 'page_size',
+    'MAX_PAGE_SIZE': 50, 
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -130,3 +144,36 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    'root': {
+        "handlers": ["file", "file_error", "console"],
+        'level': 'INFO',
+    },
+    'formatters': {
+        'simple': {
+            'format': '{asctime}:{levelname}:{funcName}:{name}:{message}',
+            'style': '{',
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            'formatter': 'simple',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': 'structure.inf.log',
+            'formatter': 'simple',
+        },
+        'file_error': {
+            'class': 'logging.FileHandler',
+            'filename': 'structure.wf.log',
+            'formatter': 'simple',
+            "level": "WARNING",
+        },
+    }
+}

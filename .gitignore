@@ -14,5 +14,6 @@ db.sql
 .idea
 debug.log
 .vscode/ 
-debug.error.log
+structure.inf.log
+structure.wf.log
 
