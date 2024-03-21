@@ -1,0 +1,7 @@
+venv
+docker-compose
+docker-compose.yml
+Dockerfile
+.git
+structure.inf.log
+structure.wf.log

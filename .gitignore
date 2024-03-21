@@ -12,7 +12,6 @@ mlruns/
 env
 db.sql
 .idea
-debug.log
 .vscode/ 
 structure.inf.log
 structure.wf.log

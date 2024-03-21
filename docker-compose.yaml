@@ -1,0 +1,34 @@
+version: "3.7"
+services:
+  db:
+    image: mysql:8
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: structure
+    volumes:
+      - "mysql:/var/lib/mysql"
+    expose:
+      - "3308"
+    ports:
+      - "3308:3306"
+    command:
+      [
+        "mysqld",
+        "--character-set-server=utf8mb4",
+        "--collation-server=utf8mb4_unicode_ci",
+      ]
+  backend:
+    image: structure_backend:latest
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    volumes:
+      - .:/code
+    depends_on:
+      - db
+    ports:
+      - 9000:8000
+    command: ["sh", "./cmd.sh"]
+volumes:
+  mysql:
