@@ -15,5 +15,6 @@ db.sql
 .vscode/ 
 structure.inf.log
 .DS_Store
+workspace/
 structure.wf.log
 

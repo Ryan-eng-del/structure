@@ -1,6 +1,5 @@
 
 import uuid
-import subprocess
 import os
 import logging
 from . import models 
@@ -14,6 +13,7 @@ from django.utils import timezone
 from django.conf import settings
 from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
+from django.db import transaction
 
 # 3 10
 # Create your views here.
@@ -21,8 +21,15 @@ from rest_framework.views import APIView
 # 创建工作空间 上传文件
 # 在指定工作空间，执行算法
 class TaskViewSet(ModelViewSet):
+  queryset = models.AlgorithmTask.objects.all()
+
   def create(self, request, *args, **kwargs):
-    workspace_dir = request.data["workspace_dir"]
+    try:
+       workspace_dir = request.data["workspace_dir"]
+       email = request.data["email"]
+    except Exception as e:
+       raise ValidationError({"message": "please input email and workspace_dir"})
+
     # 生成uuid和任务标识
     task_uuid = str(uuid.uuid4().hex)
     pid = None
@@ -46,7 +53,6 @@ class TaskViewSet(ModelViewSet):
 
 echo "Started"
 sh {{ algorithm_path }} --input {{ input }} --output {{ output }}
-curl {{ callback_url }}
 echo "Completed"
 
     """
@@ -70,75 +76,38 @@ echo "Completed"
     cmd = f"nohup /bin/bash -c 'echo {task_uuid} && /bin/bash {taskPath}' 1>{outputLog} 2>{errorLog} &"
     
     logging.info("------------------------------------------")
-    logging.info(f'Running cmd {cmd}')
+    logging.info(f'{email} Join cmd {cmd}')
     logging.info("------------------------------------------")
     
+    with transaction.atomic():
+      # 记录任务
+      t: models.AlgorithmTask = models.AlgorithmTask.objects.create(id=task_uuid, workspace_dir=workspace_path, workspace=workspace_dir, cmd=cmd)
+      # 放入队列
+      models.AlgorithmProcessQueue.objects.create(task=t)
 
-    # 记录任务
-    t: models.AlgorithmTask = models.AlgorithmTask.objects.create(id=task_uuid, workspace_dir=workspace_path, workspace=workspace_dir, cmd=cmd)
-
-    # Run
-    try:
-      process = subprocess.Popen(cmd, shell=True)
-    except Exception as e:
-      logging.error("------------------------------------------")
-      logging.error(f'Running cmd error {e}')
-      logging.error("------------------------------------------")
-      raise ValidationError("Execute Shell Error: 执行算法任务失败")
-    pid = process.pid
-
-    t.pid = pid
-    t.status = models.AlgorithmTask.RUNNING
-    t.save()
-
-    logging.info("------------------------------------------")
-    logging.info(f'Task pid {pid}')
-    logging.info("------------------------------------------")
-    return JsonResponse({'uuid': task_uuid, 'pid': pid})
+    return JsonResponse({'uuid': task_uuid, 'workspace': workspace_dir, 'workspace_path': workspace_path})
   
 class TaskQueryAPIView(APIView):
   def get(self, request, *args, **kwargs):
-    logging.info("------------------------------------------")
-    logging.info(f'调用 Query 接口 查询状态')
-    logging.info("------------------------------------------")
-    tasks: list[models.AlgorithmTask] = models.AlgorithmTask.objects.filter(status=models.AlgorithmTask.RUNNING)
-    logging.info(f'{len(tasks)} 个正在运行的任务')
-    logging.info("------------------------------------------")
+    logging.info("----- Begin Task Query ----- ")
 
-    for task in tasks:
-      # 获取任务标识
-      task_uuid = task.id
-      task_pid = task.pid
+    # 状态更新
+    logging.info("--- Begin Status Update ---")
+    try:
+       models.update_status()
+    except Exception as e:
+       logging.error(e)
+    logging.info("--- End Status Update ---")
 
-      # 检查进程是否存在
-      try:
-          # 尝试发送一个信号到进程
-          os.kill(int(task_pid), 0)
-      except OSError:
-          # 进程不存在
-          task.status = models.AlgorithmTask.SUCCESS
-          task.finish_time = timezone.now()
-          task.save()
-          text = render_to_string("result.html", {
-              "username" : "cyan",
-          })
-          workspace_path = os.path.join(settings.WORKSPACE_PATH, 'pdb.zip')
-          send_mail_with_content(["cyan0908@163.com"], "Task Execution Results", text, file_path=workspace_path)
-          return JsonResponse({"message": "send successfully"})
-      # 检查任务标识是否匹配
-      try:
-          with open(f"/proc/{task.pid}/cmdline", "r") as cmdline_file:
-              cmdline = cmdline_file.read()
-              if task_uuid not in cmdline:
-                  # 进程存在但不是当前任务
-                  task.status = models.AlgorithmTask.SUCCESS
-                  task.finish_time = timezone.now()
-                  task.save()
-                  # todo 将结果发送给用户
-                  
-      except Exception:
-          # 进程不存在 /proc 目录下
-        pass
+    # 调度任务
+    logging.info("--- Start Schedule Task ---")
+    try:
+      models.schedule()
+    except Exception as e:
+      logging.error(e)
+    logging.info("--- End Schedule Task ---")
+
+    logging.info("----- End Task Query ----- ")
 
     return JsonResponse({"message": "query successfully"})
   
