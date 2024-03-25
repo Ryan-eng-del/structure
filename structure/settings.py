@@ -177,3 +177,5 @@ LOGGING = {
         },
     }
 }
+
+WORKSPACE_PATH=os.getenv('WORKSPACE_PATH')
