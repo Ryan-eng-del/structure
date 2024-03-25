@@ -2,18 +2,42 @@ from django.db import models
 
 from django.contrib.auth.models import User
 
+
+class AlgorithmSystemRuntimeStatus(models.Model):
+    concurrency_status = models.IntegerField(default=2)
+    mark = models.CharField(max_length=255)
+
+
+class AlgorithmUserRuntimeStatus(models.Model):
+    email = models.EmailField(primary_key=True)
+    concurrency_status = models.IntegerField(default=9)
+    last_time_run = models.DateTimeField(auto_now_add=True)
+
+
+class AlgorithmSystemRuntimeControl(models.Model):
+    concurrency_limit = models.IntegerField(default=2)
+
+    class Meta:
+        db_table = 'run_time_control'
+
+    def is_exceed(self, count):
+        return count >= self.concurrency_limit
+
+
 # Create your models here.
 class AlgorithmTask(models.Model):
     RUNNING = "running"
     SUCCESS = "success"
     CANCEL = "canceled"
     CREATED = "created"
+    PENDING = "pending"
 
     STATUS_CHOICES = (
         (RUNNING, RUNNING),
         (SUCCESS, SUCCESS),
         (CANCEL, CANCEL),
-        (CREATED, CREATED)
+        (CREATED, CREATED),
+        (PENDING, PENDING)
     )
 
     id = models.UUIDField(max_length=128, primary_key=True)
@@ -29,3 +53,20 @@ class AlgorithmTask(models.Model):
 
     class Meta:
         db_table = 'task'
+
+# queue
+class AlgorithmProcessQueue(models.Model):
+    PENDING = "pending"
+    RUNNING = "running"
+    STATE_CHOICES = (
+        (PENDING, PENDING),
+        (RUNNING, RUNNING)
+    )
+    state=models.CharField(max_length=20, choices=STATE_CHOICES)
+    task=models.ForeignKey(AlgorithmTask, on_delete=models.CASCADE)
+    is_task_submit=models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'task_queue'
+
+

@@ -1,24 +1,25 @@
+
+import uuid
+import subprocess
+import os
+import logging
+from . import models 
 from django.http import JsonResponse
 from django.template import Context, Template
 from rest_framework.viewsets import ModelViewSet
-import uuid
-import subprocess
 from django.template.loader import render_to_string
 from public.emali import send_mail_with_content
 from public.utils import get_files_from_request
-from . import models 
 from django.utils import timezone
-import os
 from django.conf import settings
-import logging
 from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 
+# 3 10
 # Create your views here.
 # 计算链
 # 创建工作空间 上传文件
 # 在指定工作空间，执行算法
-
 class TaskViewSet(ModelViewSet):
   def create(self, request, *args, **kwargs):
     workspace_dir = request.data["workspace_dir"]
