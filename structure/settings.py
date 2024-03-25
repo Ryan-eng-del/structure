@@ -72,7 +72,7 @@ ROOT_URLCONF = 'structure.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [f'{BASE_DIR}/public/template'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -186,3 +186,6 @@ SMTP_PORT = 465
 SMTP_FROM_EMAIL = "cyan0908@163.com"
 SMTP_FROM_PASSWORD = "CTNCZDAEGGGKBCVV"
 SMTP_ADMIN_EMAIL_LIST = []
+
+
+APP_URL=os.getenv('APP_URL')

@@ -1,5 +1,7 @@
 from django.db import models
 
+from django.contrib.auth.models import User
+
 # Create your models here.
 class AlgorithmTask(models.Model):
     RUNNING = "running"
@@ -23,6 +25,7 @@ class AlgorithmTask(models.Model):
     finish_time = models.DateTimeField(null=True, blank=True)
     update_time = models.DateTimeField(auto_now=True, db_comment="更新时间")
     create_time = models.DateTimeField(auto_now_add=True, db_comment="创建时间")
+    creator = models.ForeignKey(User, null=True, blank=True, on_delete=models.RESTRICT)
 
     class Meta:
         db_table = 'task'

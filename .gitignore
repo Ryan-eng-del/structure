@@ -14,5 +14,6 @@ db.sql
 .idea
 .vscode/ 
 structure.inf.log
+.DS_Store
 structure.wf.log
 
