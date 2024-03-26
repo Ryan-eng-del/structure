@@ -20,7 +20,7 @@ from django.db import transaction
 # 创建工作空间 上传文件
 # 在指定工作空间，执行算法
 class TaskViewSet(ModelViewSet):
-  queryset = models.AlgorithmTask.objects.all()
+  queryset = models.AlgorithmTask.objects.order_by("-create_time").all()
   serializer_class = serializers.AlgorithmsTaskListSerializer
 
   def create(self, request, *args, **kwargs):
