@@ -30,6 +30,15 @@ class TaskViewSet(ModelViewSet):
     except Exception as e:
        raise ValidationError({"message": "please input email and workspace_dir"})
 
+    user_status_control: models.AlgorithmUserRuntimeStatus = models.get_user_status_control(email)
+    system_control : models.AlgorithmSystemRuntimeControl = models.get_runtime_control()
+
+
+    if models.exceed_user_maximum_task(user_status_control, system_control):
+      raise ValidationError({"message": "任务数量已经达到每日任务上限，请明天再来"})
+  
+    user_status_control.unfree()
+
     # 生成uuid和任务标识
     task_uuid = str(uuid.uuid4().hex)
     pid = None
@@ -81,7 +90,7 @@ echo "Completed"
     
     with transaction.atomic():
       # 记录任务
-      t: models.AlgorithmTask = models.AlgorithmTask.objects.create(id=task_uuid, workspace_dir=workspace_path, workspace=workspace_dir, cmd=cmd)
+      t: models.AlgorithmTask = models.AlgorithmTask.objects.create(id=task_uuid, workspace_dir=workspace_path, workspace=workspace_dir, cmd=cmd, email=email)
       # 放入队列
       models.AlgorithmProcessQueue.objects.create(task=t)
 
@@ -90,7 +99,6 @@ echo "Completed"
 class TaskQueryAPIView(APIView):
   def get(self, request, *args, **kwargs):
     logging.info("----- Begin Task Query ----- ")
-
     # 状态更新
     logging.info("--- Begin Status Update ---")
     try:
@@ -109,6 +117,7 @@ class TaskQueryAPIView(APIView):
 
     logging.info("----- End Task Query ----- ")
 
+    # 统计任务
     return JsonResponse({"message": "query successfully"})
   
 class WorkspaceAPIView(APIView):

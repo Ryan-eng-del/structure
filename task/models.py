@@ -3,9 +3,7 @@ import os
 import subprocess
 import logging
 from django.db import models
-from django.http import JsonResponse
 from django.utils import timezone
-from django.contrib.auth.models import User
 from django.conf import settings
 from django.template.loader import render_to_string
 from public.emali import send_mail_with_content
@@ -39,12 +37,20 @@ class AlgorithmUserRuntimeStatus(models.Model):
     class Meta:
         db_table = 'run_time_status_user'
 
+    def unfree(self):
+        self.concurrency_status += 1;
+        self.save()
+
+    def free(self):
+        self.concurrency_status -= 1;
+        self.save()
+
 def get_user_status_control(email):
     runtime_control = None
     try:
         runtime_control = AlgorithmUserRuntimeStatus.objects.get(email=email)
     except AlgorithmUserRuntimeStatus.DoesNotExist:
-        runtime_control = AlgorithmUserRuntimeStatus.objects.create(email="system", concurrency_status=0, last_time_run=timezone.now())
+        runtime_control = AlgorithmUserRuntimeStatus.objects.create(email=email, concurrency_status=0, last_time_run=timezone.now())
     return runtime_control
 
 
@@ -106,10 +112,12 @@ class AlgorithmProcessQueue(models.Model):
     PENDING = "pending"
     RUNNING = "running"
     ACCOMPLISH = "accomplish"
+    CANCEL = "cancel"
     STATE_CHOICES = (
         (PENDING, PENDING),
         (RUNNING, RUNNING),
-        (ACCOMPLISH, ACCOMPLISH)
+        (ACCOMPLISH, ACCOMPLISH),
+        (CANCEL, CANCEL)
     )
     state=models.CharField(max_length=20, choices=STATE_CHOICES, default=PENDING)
     task=models.ForeignKey(AlgorithmTask, on_delete=models.CASCADE)
@@ -144,8 +152,6 @@ def require_task_queue():
     system_control: AlgorithmSystemRuntimeControl = get_runtime_control()
 
     if not system_control.is_exceed(runtime_control_status.concurrency_status):
-        runtime_control_status.concurrency_status += 1
-        runtime_control_status.save()
         return True
     
     return False
@@ -154,38 +160,70 @@ def require_task_queue():
 def process_queue_update_status():
     if require_task_queue():
         tasks = AlgorithmProcessQueue.objects.filter(state=AlgorithmProcessQueue.PENDING, is_task_submit=False)
-
         if not tasks.exists():
             return
         task: AlgorithmProcessQueue = tasks[0]
         task.state = AlgorithmProcessQueue.RUNNING
+        runtime_control_status: AlgorithmSystemRuntimeStatus = get_system_status_control()
+        runtime_control_status.concurrency_status += 1
+        runtime_control_status.save()
         task.save()
     else:
         logging.info("Processing queue have been to maximum number of tasks")
+
+def cancel_task(algorithm_task: AlgorithmTask):
+    algorithm_task.pid = -1
+    algorithm_task.status = AlgorithmTask.CANCEL
+    algorithm_task.save()
 
 
 def run_task(algorithm_task: AlgorithmTask):
     cmd = algorithm_task.cmd
     try:
-      process = subprocess.Popen(cmd, shell=True)
+       subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except Exception as e:
       logging.error(f'cmd: {algorithm_task.cmd} | workspace: {algorithm_task.workspace}')
       logging.error(f'--- Running cmd error {e} ---')
 
-    pid = process.pid
+    # 使用ps命令查询相关进程
+    ps_cmd = f"ps -ef | grep {algorithm_task.id.hex} | grep -v grep"
+    ps_process = subprocess.Popen(ps_cmd, shell=True, stdout=subprocess.PIPE)
+
+    # 读取ps命令的输出，获取PID
+    ps_output = ps_process.stdout.read().decode('utf-8').strip()
+    relevant_pid = None
+
+    # 提取PID
+    if ps_output:
+        relevant_pid = ps_output.split()[1]
+
+    if not relevant_pid:
+        cancel_task(algorithm_task)
+        return False
+
+    pid = relevant_pid
     algorithm_task.pid = pid
     algorithm_task.status = AlgorithmTask.RUNNING
     algorithm_task.save()
     logging.info(f'--- Star run of task pid {pid} ---')
+    return True
 
 def process_queue_execute():
     tasks: list[AlgorithmProcessQueue] = AlgorithmProcessQueue.objects.filter(state=AlgorithmProcessQueue.RUNNING, is_task_submit=False)
 
     for t in tasks:
-        algorithm_task = t.task
-        run_task(algorithm_task)
-        t.is_task_submit = True
-        t.save()
+        algorithm_task: AlgorithmTask = t.task
+        if run_task(algorithm_task):
+            t.is_task_submit = True
+            t.save()
+        else:
+            system_status_control = get_system_status_control()
+            system_status_control.free()
+            user_status_control = get_user_status_control(algorithm_task.email)
+            user_status_control.free()
+            t.state = AlgorithmProcessQueue.CANCEL
+            t.is_task_submit = False
+            t.save()
 
 def schedule():
     # Status From Pending -> Running
