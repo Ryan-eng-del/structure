@@ -3,11 +3,10 @@ import uuid
 import os
 import logging
 from . import models 
+from . import serializers
 from django.http import JsonResponse
 from django.template import Context, Template
 from rest_framework.viewsets import ModelViewSet
-from django.template.loader import render_to_string
-from public.emali import send_mail_with_content
 from public.utils import get_files_from_request
 from django.utils import timezone
 from django.conf import settings
@@ -22,6 +21,7 @@ from django.db import transaction
 # 在指定工作空间，执行算法
 class TaskViewSet(ModelViewSet):
   queryset = models.AlgorithmTask.objects.all()
+  serializer_class = serializers.AlgorithmsTaskListSerializer
 
   def create(self, request, *args, **kwargs):
     try:

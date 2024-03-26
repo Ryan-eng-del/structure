@@ -53,7 +53,6 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'DATETIME_FORMAT': '%Y-%m-%d %H:%M:%S',
     'PAGE_SIZE': 10,
-    'PAGINATE_BY_PARAM': 'page_size',
     'MAX_PAGE_SIZE': 50, 
 }
 
