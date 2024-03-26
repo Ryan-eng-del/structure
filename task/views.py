@@ -30,14 +30,6 @@ class TaskViewSet(ModelViewSet):
     except Exception as e:
        raise ValidationError({"message": "please input email and workspace_dir"})
 
-    user_status_control: models.AlgorithmUserRuntimeStatus = models.get_user_status_control(email)
-    system_control : models.AlgorithmSystemRuntimeControl = models.get_runtime_control()
-
-
-    if models.exceed_user_maximum_task(user_status_control, system_control):
-      raise ValidationError({"message": "任务数量已经达到每日任务上限，请明天再来"})
-  
-    user_status_control.unfree()
 
     # 生成uuid和任务标识
     task_uuid = str(uuid.uuid4().hex)
@@ -56,7 +48,15 @@ class TaskViewSet(ModelViewSet):
   
     if os.path.exists(taskPath):
        raise ValidationError({"message": "任务已经存在"})
+    
+    user_status_control: models.AlgorithmUserRuntimeStatus = models.get_user_status_control(email)
+    system_control : models.AlgorithmSystemRuntimeControl = models.get_runtime_control()
 
+
+    if models.exceed_user_maximum_task(user_status_control, system_control):
+      raise ValidationError({"message": "任务数量已经达到每日任务上限，请明天再来"})
+  
+    user_status_control.unfree()
     template_str = """
 #!/bin/bash
 
