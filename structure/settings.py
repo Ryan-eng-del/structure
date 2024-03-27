@@ -29,7 +29,7 @@ SECRET_KEY = 'django-insecure-8$^ao0sxug2foca=i@2i791awif*4cfhu2*cbfhyjok)63b-9d
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'corsheaders', # 注册app corsheaders
     'rest_framework.authtoken',
     'task',
 ]
@@ -59,6 +60,7 @@ REST_FRAMEWORK = {
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -188,3 +190,14 @@ SMTP_ADMIN_EMAIL_LIST = []
 
 
 APP_URL=os.getenv('APP_URL')
+
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_HEADERS = ('*')
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]

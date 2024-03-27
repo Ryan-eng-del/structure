@@ -13,6 +13,8 @@ from django.conf import settings
 from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 from django.db import transaction
+from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 
 # 3 10
 # Create your views here.
@@ -22,6 +24,21 @@ from django.db import transaction
 class TaskViewSet(ModelViewSet):
   queryset = models.AlgorithmTask.objects.order_by("-create_time").all()
   serializer_class = serializers.AlgorithmsTaskListSerializer
+  pagination_class = PageNumberPagination
+
+  @action(methods=["GET"], detail=False)
+  def statistics(self, request, *args, **kwargs):
+    p = self.queryset.filter(status=models.AlgorithmTask.PENDING)
+    s = self.queryset.filter(status=models.AlgorithmTask.SUCCESS)
+    a = self.queryset.filter().all()
+    r = self.queryset.filter(status=models.AlgorithmTask.RUNNING)
+
+    return JsonResponse({
+      "success": len(s),
+      "pending": len(p),
+      "all": len(a),
+      "running": len(r)
+    })
 
   def create(self, request, *args, **kwargs):
     try:
@@ -72,7 +89,6 @@ echo "Completed"
        "input": "-a 100 -c 50",
        "output": workspace_path,
        "algorithm_path": os.path.join(settings.WORKSPACE_PATH, "a.sh"),
-       "callback_url":  f'{settings.APP_URL}/api/query/'
     }
 
     # 创建上下文并解析变量
@@ -93,7 +109,6 @@ echo "Completed"
       t: models.AlgorithmTask = models.AlgorithmTask.objects.create(id=task_uuid, workspace_dir=workspace_path, workspace=workspace_dir, cmd=cmd, email=email)
       # 放入队列
       models.AlgorithmProcessQueue.objects.create(task=t)
-
     return JsonResponse({'uuid': task_uuid, 'workspace': workspace_dir, 'workspace_path': workspace_path})
   
 class TaskQueryAPIView(APIView):
@@ -114,9 +129,7 @@ class TaskQueryAPIView(APIView):
     except Exception as e:
       logging.error(e)
     logging.info("--- End Schedule Task ---")
-
     logging.info("----- End Task Query ----- ")
-
     # 统计任务
     return JsonResponse({"message": "query successfully"})
   

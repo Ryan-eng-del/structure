@@ -7,3 +7,11 @@ def get_files_from_request(request):
   return files
 
 
+def generate_file_stream(file_path):
+  with open(file_path) as f:
+          while True:
+              c=f.read(1024 * 1024 * 512)
+              if c:
+                  yield c
+              else:
+                  break
